@@ -1,26 +1,15 @@
-# Reddit-weekly
+# Reddit Daily
 
-Reddit-weekly was born from the idea of getting a weekly
-newsletter from subreddits, so you don't have to
-browse it every other day.
+My implementation of [ferold/reddit-weekly](https://github.com/feroldi/reddit-weekly).
 
-# Usage
+I'm using [prefect](https://github.com/PrefectHQ/prefect) to:
 
-    python rewe.py --users database.json
+- elegantly handle task failures
+- retry HTTP requests
+- notify you of email failures
+- run this on a schedule
 
-The script will read a json file (a set of emails and
-reddit refresh tokens), then proceed to get a page of
-each subreddit a user is subscribed to, and send it
-to their email.
-
-You can use your own app (id and secret) if you want
-to run it by yourself.
-
-In order to send an email, it is necessary to
-have an existing email account, so that there is
-an actual sender.
-
-# Setup
+## Setup
 
 Firstly, go to [reddit apps](https://www.reddit.com/prefs/apps/) and
 register a new app. You'll need the personal use script id,
@@ -34,50 +23,49 @@ Then, you need to generate your reddit's refresh token.
 The easiest way is to run [this](https://praw.readthedocs.io/en/latest/tutorials/refresh_token.html#refresh-token)
 script. This token is used for authentication to get a reddit account's subreddits.
 
-**Note**: only the `identity` and `mysubreddits` scopes are necessary
-from a user's account, so when this message come up:
+1. Add the relevant secrets to `~/.prefect/config.toml`, see [the prefect docs](https://docs.prefect.io/guide/cloud_concepts/secrets.html) for more info
 
-    Now enter a comma separated list of scopes, or all for all tokens:
+You'll need an app email password for your email address. Here's how to get one for [gmail](https://support.google.com/accounts/answer/185833?hl=en).
 
-Just enter with `identity,mysubreddits`.
+```toml
+# config.toml
+[cloud]
+use_local_secrets = true
 
-Export all variables used by the script. For example:
+[context.secrets]
+REDDIT_DAILY_EMAIL = "place email here"
+REDDIT_DAILY_EMAIL_PASSWORD = "place email app password here"
+REDDIT_DAILY_REFRESH_TOKEN = "place app refresh token here"
+REDDIT_DAILY_APP_ID = "reddit app id goes here"
+REDDIT_DAILY_APP_SECRET = "reddit app secret goes here"
+```
 
-    export REWE_SENDER='place sender email here'
-    export REWE_PASS='place sender password gere'
-    export REWE_APP_ID='place client id here'
-    export REWE_APP_SECRET='place client secret here'
+## Running Locally
 
-Create a json file (let's call it `database.json`) with all the desired
-target emails (emails to send the newsletter to), and their respective refresh token.
+If you'd like to test this script locally, first install dependencies using [pip](https://pypi.org/project/pip/).
 
-    {
-        "example1@mail_one.com": "refresh token 1",
-        "example2@mail_two.com": "refresh token 2"
-        // etc...
-    }
+```bash
+pip install -r requirements.txt
+```
 
-Only then you can run it:
+To run the flow, we can use an [ipython](https://ipython.org/) session.
 
-    ./rewe.py --users database.json
+```bash
+ipython -i reddit_daily.py
+```
 
-And it will proceed to send a newsletter to each email
-in the json file.
+Once the session is open:
 
-# Environment variables
+```bash
+In [1]: flow.run()
+```
 
-+ `REWE_SENDER`: sender's email.
-+ `REWE_PASS`: sender's email password.
-+ `REWE_APP_ID`: reddit's app client id.
-+ `REWE_APP_SECRET`: reddit's app client secret.
-
-# How does it look like
+## What it looks like
 
 Screenshot of newsletter from r/programming:
 
 ![reddit-weekly](http://i.imgur.com/QEyqKYs.png)
 
-# License
+## License
 
 This project is licensed under the MIT license. See LICENSE.
-
