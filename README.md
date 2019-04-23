@@ -27,6 +27,8 @@ script. This token is used for authentication to get a reddit account's subreddi
 
 You'll need an app email password for your email address. Here's how to get one for [gmail](https://support.google.com/accounts/answer/185833?hl=en).
 
+You'll also need to install the Prefect [slack app](https://docs.prefect.io/guide/tutorials/slack-notifications.html#installation-instructions) and register a webhook if you'd like the flow to be able to slack you if something goes wrong.
+
 ```toml
 # config.toml
 [cloud]
@@ -38,6 +40,8 @@ REDDIT_DAILY_EMAIL_PASSWORD = "place email app password here"
 REDDIT_DAILY_REFRESH_TOKEN = "place app refresh token here"
 REDDIT_DAILY_APP_ID = "reddit app id goes here"
 REDDIT_DAILY_APP_SECRET = "reddit app secret goes here"
+SLACK_WEBHOOK_URL = "slack webhook url goes here"
+SLACK_MESSAGE = "slack message goes here. If you have a {} in the string, the {} will be replaced with the FlowRun ID. Useful for adding a URL with the appropriate UUID to your message."
 ```
 
 ## Running Locally

@@ -14,9 +14,11 @@ from email.mime.text import MIMEText
 from argparse import ArgumentParser
 from premailer import Premailer
 
+import prefect
 from prefect import task, Flow
 from prefect.client import Secret
 from prefect.triggers import any_failed
+from prefect.tasks.notifications.slack_task import SlackTask
 
 HEADERS = requests.utils.default_headers()
 HEADERS.update(
@@ -29,7 +31,11 @@ SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
 REDDIT_CSS = os.path.join(SCRIPT_PATH, "css", "reddit.css")
 
 
-@task(name="Fetch User Subreddits")
+@task(
+    name="Fetch User Subreddits",
+    max_retries=5,
+    retry_delay=datetime.timedelta(minutes=5),
+)
 def user_subreddits():
     app_id = Secret("REDDIT_DAILY_APP_ID").get()
     app_secret = Secret("REDDIT_DAILY_APP_SECRET").get()
@@ -58,7 +64,9 @@ def _extract_external_css(selector):
         yield sheet
 
 
-@task(name="Extract Top Posts")
+@task(
+    name="Extract Top Posts", max_retries=5, retry_delay=datetime.timedelta(minutes=5)
+)
 def weekly_page(subreddit):
     css = REDDIT_CSS
     subreddit = subreddit.display_name
@@ -147,8 +155,7 @@ def format_email(email_body):
     return email_body_stage_2
 
 
-# , max_retries=5, retry_delay=datetime.timedelta(minutes=5)
-@task(name="Send Email")
+@task(name="Send Email", max_retries=5, retry_delay=datetime.timedelta(minutes=5))
 def send_email(subreddit, message):
     subject = "Reddit weekly r/{}".format(subreddit)
     email_address = Secret("REDDIT_DAILY_EMAIL").get()
@@ -170,20 +177,21 @@ def send_email(subreddit, message):
         server.sendmail(email_address, [email_address], msg.as_string())
 
 
-@task(name="Failure Slack Notification", trigger=any_failed)
-def send_failure_notice():
-    print("This task is a stand-in for sending a real slack message, fix it Dylan")
+@task(name="Format Failure Message")
+def format_failure_message():
+    flow_run_id = prefect.context.get("flow_run_id", "undefined")
+    return Secret("SLACK_MESSAGE").get().format(flow_run_id)
 
+
+send_failure_notice = SlackTask(name="Failure Slack Notification", trigger=any_failed)
 
 with Flow("Reddit Daily") as flow:
     subreddits = user_subreddits()
     email_bodies = weekly_page.map(subreddits)
     formatted_email_bodies = format_email.map(email_bodies)
     results = send_email.map(subreddit=subreddits, message=formatted_email_bodies)
-    send_failure_notice(upstream_tasks=[results])
+    send_failure_notice(upstream_tasks=[results], message=format_failure_message)
     flow.set_reference_tasks([results])
 
 
-# TODO Add task that runs only if upstream tasks fail that slacks me if something broke
 # TODO Reduce the text files into one text file and email that
-
