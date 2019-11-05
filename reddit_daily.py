@@ -67,7 +67,7 @@ def _extract_external_css(selector):
 @task(
     name="Extract Top Posts", max_retries=5, retry_delay=datetime.timedelta(minutes=5)
 )
-def weekly_page(subreddit):
+def daily_page(subreddit):
     css = REDDIT_CSS
     subreddit = subreddit.display_name
 
@@ -89,6 +89,7 @@ def weekly_page(subreddit):
     file.write("<html>")
 
     if css == 1:  # Download External
+        print("INTERNAL LOG: CSS is 1")
         file.write("<head>")
         file.write(
             '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">'
@@ -99,10 +100,12 @@ def weekly_page(subreddit):
             file.write("\n</style>\n")
         file.write("</head>")
     elif css == 2:  # Keep External
+        print("INTERNAL LOG: CSS is 1")
         head = sel.xpath("/html/head").extract_first()
         head = re.sub(r'="//', '="https://', head)
         file.write(head)
     elif isinstance(css, str):
+        print("INTERNAL LOGS: CSS is instance of str")
         file.write("<head>")
         file.write(
             '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">'
@@ -110,6 +113,7 @@ def weekly_page(subreddit):
         _concat_css(css, file)
         file.write("</head>")
     elif isinstance(css, list):
+        print("INTERNAL LOGS: CSS is instance of list")
         file.write("<head>")
         file.write(
             '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">'
@@ -118,6 +122,7 @@ def weekly_page(subreddit):
             _concat_css(c, file)
         file.write("</head>")
     else:
+        print("INTERNAL LOGS: CSS else block")
         file.write("<head>")
         file.write(
             '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">'
@@ -187,7 +192,7 @@ send_failure_notice = SlackTask(name="Failure Slack Notification", trigger=any_f
 
 with Flow("Reddit Daily") as flow:
     subreddits = user_subreddits()
-    email_bodies = weekly_page.map(subreddits)
+    email_bodies = daily_page.map(subreddits)
     formatted_email_bodies = format_email.map(email_bodies)
     results = send_email.map(subreddit=subreddits, message=formatted_email_bodies)
     send_failure_notice(upstream_tasks=[results], message=format_failure_message)
